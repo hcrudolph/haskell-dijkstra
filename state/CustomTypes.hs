@@ -1,4 +1,4 @@
-module CustomTypesNew where
+module CustomTypes where
 import Data.Function (on)
 import qualified Data.Heap as H
 import qualified Data.Map.Strict as M
@@ -19,7 +19,7 @@ data Arc a = Arc
 type Graph a  = [Node a]
 type Adj a    = (a, [(a, Int)])
 type GrValue a = M.Map (a) (Arc a)
-type GrState a = (Arc a, M.Map (a) (Arc a))
+type GrState a = (Arc a, Maybe (H.MinHeap (Arc a)), M.Map (a) (Arc a))
 type DState a = (a, Int)
 
 ----------------------------------------------
