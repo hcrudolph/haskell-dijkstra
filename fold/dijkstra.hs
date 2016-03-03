@@ -16,10 +16,10 @@ import qualified Data.Map.Strict as M   -- Map (BST) fuer das Visited-Set
 dijkstra :: (Ord a) => [Adj a] -> a -> a -> (Int, [Arc a])
 dijkstra l s d = (dist, M.elems res) where
     dist  = weight $ fromJust $ M.lookup d res
-    res   = fst $ foldl' trav (M.singleton s init, H.fromList $ adjcnt start) $ tail graph
+    res   = fst $ foldl' trav (M.empty, H.singleton init) $ graph
     graph = mkGraph l
-    init  = Arc start 0 s
     start = fromJust $ findNode s graph
+    init  = Arc start 0 s
 
 trav :: (Ord a) => (M.Map a (Arc a), H.MinHeap (Arc a)) -> b -> (M.Map a (Arc a), H.MinHeap (Arc a))
 trav (v,p) _ = (vs,ps)
@@ -28,29 +28,15 @@ trav (v,p) _ = (vs,ps)
           loc = map (updateWeight $ weight arc) (adjcnt $ node arc)
           (vs,ps) = updateSets loc v' p
 
-
+{--
+ - Ignoriere Kandidaten, die bereits im Visited-Set vorhanden sind
+ - und nimm den nächsten Kandadaten in der Queue.
+ -}
 getNextArc :: (Ord a) => M.Map a (Arc a) -> H.MinHeap (Arc a) -> Arc a
 getNextArc v p
     | M.notMember (label $ node h) v = h
-    | otherwise                      = getNextArc v (tailH p)
+    | otherwise                      = getNextArc v $ fromJust $ H.viewTail p
     where h = fromJust $ H.viewHead p
-
-
---getNext :: (M.Map a (Arc a), H.MinHeap (Arc a)) -> (M.Map a (Arc a), H.MinHeap (Arc a))
---getNext vs ps
---    | M.notMember (label $ node h) vs = (vs,ps)
---    | otherwise                       = getNext (vs, tailH ps)
---    where h = fromJust $ H.viewHead ps
-
-tailH :: (Ord a) => H.MinHeap a -> H.MinHeap a
-tailH x = case H.viewTail x of
-    Nothing -> H.empty
-    Just x  -> x
-
-headH :: (Ord a) => H.MinHeap a -> H.MinHeap a
-headH x = case H.viewTail x of
-    Nothing -> H.empty
-    Just x  -> x
 
 {--
  - Aktualisiert das Gewicht eines Arcs
@@ -101,12 +87,10 @@ findNode :: (Eq a) => a -> Graph a -> Maybe (Node a)
 findNode y []     = Nothing
 findNode y (x:xs) = if y == label x then Just x else findNode y xs
 
-nlist = [('a',[('b',2),('c',1)]),('b',[('a',2),('c',2)]),('c',[('a',1),('b',2)])]
-
 {- Hauptfunktion -}
 main = do
-    f <- getArgs
-    c <- readFile (f !! 0)
+    [f,s,d] <- getArgs
+    c <- readFile f
     let nlist = read c :: [(String,[(String, Int)])]
-    print $ dijkstra nlist (f!!1) (f!!2)
+    print $ dijkstra nlist s d
 
