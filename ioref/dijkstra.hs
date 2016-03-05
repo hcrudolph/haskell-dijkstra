@@ -2,13 +2,12 @@
 import System.Environment (getArgs)     -- Kommandozeilenparameter lesen
 import Prelude hiding (traverse)        -- Standardfunktionen, außer traverse
 import Data.Maybe (fromJust)            -- Maybe-Werte "auspacken"
-import System.IO                        -- Dateiinhalte lesen
+import System.IO (readFile)             -- Dateiinhalte lesen
 import Control.Monad.State              -- State-Monade
 import CustomTypes                      -- Eigenen Datentypen
 import qualified Data.Heap as H         -- MinHeap fuer das Kandidaten-Set
 import qualified Data.Map.Strict as M   -- Map (BST) fuer das Visited-Set
 import Data.IORef
-import Control.DeepSeq
 
 {--
  - Wrapper fuer alle noetigen Teilfunktionen
@@ -25,9 +24,8 @@ dijkstra l s d = do
     return (weight $ fromJust $ M.lookup d vs', M.elems vs')
 
 {--
- - Rekursive Funktion zum Durchlaufen des Graphen
- - Endet, wenn alle Knoten besucht wurden, d.h. die Liste
- - der Knoten (= Graph) leer ist.
+ - Funktion zum Aktualisierung von Kandidaten- und Visited-Set
+ - Beide Sets sind durch IORefs repräsentiert.
  -}
 traverse :: (Ord a) => IORef (H.MinHeap (Arc a)) -> IORef (M.Map (a) (Arc a)) -> IO ()
 traverse iops iovs = do
@@ -39,31 +37,33 @@ traverse iops iovs = do
     writeIORef iops ps'
     writeIORef iovs vs'
 
+{--
+- Gibt das erste Element der MinHeap zurück,
+- das nicht im Visited-Set enthalten ist. 
+-}
 getNextArc :: (Ord a) => M.Map (a) (Arc a) -> H.MinHeap (Arc a) -> Arc a
 getNextArc vs ps
     | M.notMember (label $ node h) vs = h
     | otherwise                       = getNextArc vs $ tailH ps
     where h = fromJust $ H.viewHead ps
 
+{--
+- Nicht-monadischer Wrapper für Heap.viewHead
+- Gibt Heap.empty bei leerem Tail zurück.
+-}
 tailH :: (Ord a) => H.MinHeap a -> H.MinHeap a
 tailH h = case H.viewTail h of
     Nothing -> H.empty
     Just x  -> x
 
-getNext :: (Ord a) => M.Map (a) (Arc a) -> H.MinHeap (Arc a) -> (Arc a, Maybe (H.MinHeap (Arc a)))
-getNext vs ps
-    | M.notMember (label $ node h) vs = (h, H.viewTail ps)
-    | otherwise                       = getNext vs (fromJust $ H.viewTail ps)
-    where h = fromJust $ H.viewHead ps
-
 {--
  - Aktualisiert das Gewicht eines Arcs
  -}
-updateWeight :: (Ord a) => Int -> Arc a -> Arc a
+updateWeight :: Int -> Arc a -> Arc a
 updateWeight w x = Arc (node x) (w + weight x) (via x)
 
 {--
- - Akualisiert Kandidaten- und Visited Set fuer eine Liste von Arcs.
+ - Akualisiert Kandidaten- und Visited-Set fuer eine Liste von Arcs.
  - Ist eine Kante nicht im Visited-Set vorhanden, wird sie dem
  - Kandidaten-Set hinzugefuegt. Befindet sie sich bereits im Visited-Set,
  - wird gepueft ob sie eine bessere Alternative zum jeweiligen Knoten
@@ -110,9 +110,7 @@ findNode y (x:xs) = if y == label x then Just x else findNode y xs
 main :: IO ()
 main = do
     [f,s,d] <- getArgs
-    h <- openFile f ReadMode
-    c <- hGetContents h
-    c `deepseq` hClose h
+    c <- readFile f
     let nlist = read c :: [(String,[(String, Int)])]
     res <- dijkstra nlist s d
     print res
