@@ -1,4 +1,3 @@
-{-# LANGUAGE BangPatterns #-}
 import System.Environment (getArgs)     -- Kommandozeilenparameter lesen
 import Prelude hiding (traverse)        -- Standardfunktionen, außer traverse
 import Data.Maybe (fromJust)            -- Maybe-Werte "auspacken"
@@ -16,10 +15,10 @@ import qualified Data.Map.Strict as M   -- Map (BST) fuer das Visited-Set
 dijkstra :: (Ord a) => [Adj a] -> a -> a -> (Int, [Arc a])
 dijkstra l s d = (dist, M.elems res) where
     dist  = weight $ fromJust $ M.lookup d res
-    res   = fst $ foldl' trav (M.singleton s init, H.fromList $ adjcnt start) $ tail graph
+    res   = fst $ foldl' trav (M.empty, H.singleton init) $ graph
     graph = mkGraph l
-    init  = Arc start 0 s
     start = fromJust $ findNode s graph
+    init  = Arc start 0 s
 
 trav :: (Ord a) => (M.Map a (Arc a), H.MinHeap (Arc a)) -> b -> (M.Map a (Arc a), H.MinHeap (Arc a))
 trav (v,p) _ = (vs,ps)
@@ -28,11 +27,14 @@ trav (v,p) _ = (vs,ps)
           loc = map (updateWeight $ weight arc) (adjcnt $ node arc)
           (vs,ps) = updateSets loc v' p
 
-
+{--
+ - Ignoriere Kandidaten, die bereits im Visited-Set vorhanden sind
+ - und nimm den nächsten Kandadaten in der Queue.
+ -}
 getNextArc :: (Ord a) => M.Map a (Arc a) -> H.MinHeap (Arc a) -> Arc a
 getNextArc v p
     | M.notMember (label $ node h) v = h
-    | otherwise                      = getNextArc v (tailH p)
+    | otherwise                      = getNextArc v $ fromJust $ H.viewTail p
     where h = fromJust $ H.viewHead p
 
 
