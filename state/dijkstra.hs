@@ -1,4 +1,3 @@
-{-# LANGUAGE BangPatterns #-}
 import System.Environment (getArgs)     -- Kommandozeilenparameter lesen
 import Prelude hiding (traverse)        -- Standardfunktionen, außer traverse
 import Data.Maybe (fromJust)            -- Maybe-Werte "auspacken"
@@ -18,7 +17,7 @@ dijkstra l s d = (dist, M.elems res) where
     dist  = weight $ fromJust $ M.lookup d res
     res   = evalState (traverse graph) init
     graph = mkGraph l
-    init  = (Arc start 0 s, Just H.empty, M.empty)
+    init  = (Arc start 0 s, H.empty, M.empty)
     start = fromJust $ findNode s graph
 
 {--
@@ -40,16 +39,21 @@ traverse (x:xs) = do
         -- Aktualisiere das Gewicht der hiesigen Kandidaten
         ps  = map (updateWeight $ weight a) (adjcnt $ node a)
         -- Aktualisiere das Kandidaten- und Visited-Set
-        (vs'', ps') = updateSets ps vs' (fromJust mPs)
+        (vs'', ps') = updateSets ps vs' mPs
         -- Ermittle den naechsten Kandidaten
         (a',mPs')  = getNext vs'' ps'
     -- Aktualisiere den globalen Zustand
     put (a',mPs',vs'')
     traverse xs
 
-getNext :: (Ord a) => M.Map (a) (Arc a) -> H.MinHeap (Arc a) -> (Arc a, Maybe (H.MinHeap (Arc a)))
+tailH :: (Ord a) => H.MinHeap a -> H.MinHeap a
+tailH h = case H.viewTail h of
+    Nothing -> H.empty
+    Just x  -> x
+
+getNext :: (Ord a) => M.Map (a) (Arc a) -> H.MinHeap (Arc a) -> (Arc a, H.MinHeap (Arc a))
 getNext vs ps
-    | M.notMember (label $ node h) vs = (h, H.viewTail ps)
+    | M.notMember (label $ node h) vs = (h, tailH ps)
     | otherwise                       = getNext vs (fromJust $ H.viewTail ps)
     where h = fromJust $ H.viewHead ps
 
@@ -106,7 +110,7 @@ findNode y (x:xs) = if y == label x then Just x else findNode y xs
 {- Hauptfunktion -}
 main :: IO ()
 main = do
-    f <- getArgs
-    c <- readFile (f !! 0)
-    let !nlist = read c :: [(String,[(String, Int)])]
-    print $ dijkstra nlist (f !! 1) (f !! 2)
+    [f,s,d] <- getArgs
+    c <- readFile f
+    let nlist = read c :: [(String,[(String, Int)])]
+    print $ fst $ dijkstra nlist s d
