@@ -47,11 +47,6 @@ tailH x = case H.viewTail x of
     Nothing -> H.empty
     Just x  -> x
 
-headH :: (Ord a) => H.MinHeap a -> H.MinHeap a
-headH x = case H.viewTail x of
-    Nothing -> H.empty
-    Just x  -> x
-
 {--
  - Aktualisiert das Gewicht eines Arcs
  -}
@@ -101,12 +96,10 @@ findNode :: (Eq a) => a -> Graph a -> Maybe (Node a)
 findNode y []     = Nothing
 findNode y (x:xs) = if y == label x then Just x else findNode y xs
 
-nlist = [('a',[('b',2),('c',1)]),('b',[('a',2),('c',2)]),('c',[('a',1),('b',2)])]
-
 {- Hauptfunktion -}
 main = do
-    f <- getArgs
-    c <- readFile (f !! 0)
+    [f,s,d] <- getArgs
+    c <- readFile f
     let nlist = read c :: [(String,[(String, Int)])]
-    print $ dijkstra nlist (f!!1) (f!!2)
+    print $ dijkstra nlist s d
 
