@@ -7,7 +7,6 @@ import CustomTypes                      -- Eigenen Datentypen
 import qualified Data.Heap as H         -- MinHeap fuer das Kandidaten-Set
 import qualified Data.Map.Strict as M   -- Map (BST) fuer das Visited-Set
 
-
 {--
  - Wrapper fuer alle noetigen Teilfunktionen
  - (Graph erzeugen, Graph durchlaufen, Ergebnis zurückgeben)
@@ -15,35 +14,33 @@ import qualified Data.Map.Strict as M   -- Map (BST) fuer das Visited-Set
 dijkstra :: (Ord a) => [Adj a] -> a -> a -> (Int, [Arc a])
 dijkstra l s d = (dist, M.elems res) where
     dist  = weight $ fromJust $ M.lookup d res
-    res   = fst $ foldl' trav (M.empty, H.singleton init) $ graph
+    (_,_,res) = foldl' trav (init, H.empty, M.empty) $ graph
     graph = mkGraph l
     start = fromJust $ findNode s graph
     init  = Arc start 0 s
 
-trav :: (Ord a) => (M.Map a (Arc a), H.MinHeap (Arc a)) -> b -> (M.Map a (Arc a), H.MinHeap (Arc a))
-trav (v,p) _ = (vs,ps)
-    where arc = getNextArc v p
-          v'  = M.insert (label $ node arc) arc v
+trav :: (Ord a) => (Arc a, H.MinHeap (Arc a), M.Map a (Arc a)) -> b -> (Arc a, H.MinHeap (Arc a), M.Map a (Arc a))
+trav (arc,p,v) _ = (a',ps',vs)
+    where v'  = M.insert (label $ node arc) arc v
           loc = map (updateWeight $ weight arc) (adjcnt $ node arc)
           (vs,ps) = updateSets loc v' p
+          (a',ps') = getNext vs ps
 
 {--
  - Ignoriere Kandidaten, die bereits im Visited-Set vorhanden sind
  - und nimm den nächsten Kandadaten in der Queue.
  -}
-getNextArc :: (Ord a) => M.Map a (Arc a) -> H.MinHeap (Arc a) -> Arc a
-getNextArc v p
-    | M.notMember (label $ node h) v = h
-    | otherwise                      = getNextArc v $ fromJust $ H.viewTail p
-    where h = fromJust $ H.viewHead p
+getNext :: (Ord a) => M.Map (a) (Arc a) -> H.MinHeap (Arc a) -> (Arc a, H.MinHeap (Arc a))
+getNext vs ps
+    | M.notMember (label $ node h) vs = (h, tailH ps)
+    | otherwise                       = getNext vs (tailH ps)
+    where h = fromJust $ H.viewHead ps
 
 
---getNext :: (M.Map a (Arc a), H.MinHeap (Arc a)) -> (M.Map a (Arc a), H.MinHeap (Arc a))
---getNext vs ps
---    | M.notMember (label $ node h) vs = (vs,ps)
---    | otherwise                       = getNext (vs, tailH ps)
---    where h = fromJust $ H.viewHead ps
-
+{--
+- Nicht-monadischer Wrapper für Heap.viewHead
+- Gibt Heap.empty bei leerem Tail zurück.
+-}
 tailH :: (Ord a) => H.MinHeap a -> H.MinHeap a
 tailH x = case H.viewTail x of
     Nothing -> H.empty
