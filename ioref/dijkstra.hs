@@ -1,4 +1,3 @@
-{-# LANGUAGE BangPatterns #-}
 import System.Environment (getArgs)     -- Kommandozeilenparameter lesen
 import Prelude hiding (traverse)        -- Standardfunktionen, außer traverse
 import Data.Maybe (fromJust)            -- Maybe-Werte "auspacken"
@@ -17,9 +16,10 @@ dijkstra :: (Ord a) => [Adj a] -> a -> a -> IO (Int, [Arc a])
 dijkstra l s d = do
     let graph = mkGraph l
         start = fromJust $ findNode s graph
-    ps  <- newIORef $ H.singleton (Arc start 0 s)
+    arc <- newIORef $ Arc start 0 s
+    ps  <- newIORef $ H.empty
     vs  <- newIORef $ M.empty
-    replicateM_ (length graph) $ traverse ps vs
+    replicateM_ (length graph) $ traverse arc ps vs
     vs' <- readIORef vs
     return (weight $ fromJust $ M.lookup d vs', M.elems vs')
 
@@ -27,24 +27,26 @@ dijkstra l s d = do
  - Funktion zum Aktualisierung von Kandidaten- und Visited-Set
  - Beide Sets sind durch IORefs repräsentiert.
  -}
-traverse :: (Ord a) => IORef (H.MinHeap (Arc a)) -> IORef (M.Map (a) (Arc a)) -> IO ()
-traverse iops iovs = do
+traverse :: (Ord a) => IORef (Arc a) -> IORef (H.MinHeap (Arc a)) -> IORef (M.Map (a) (Arc a)) -> IO ()
+traverse ioarc iops iovs = do
+    arc <- readIORef ioarc
     ps  <- readIORef iops
     vs  <- readIORef iovs
-    let arc =  getNextArc vs ps
-        loc = map (updateWeight $ weight arc) (adjcnt $ node arc)
+    let loc = map (updateWeight $ weight arc) (adjcnt $ node arc)
         (vs',ps') = updateSets loc (M.insert (label $ node arc) arc vs) ps
-    writeIORef iops ps'
+        (a',ps'') = getNext vs' ps'
+    writeIORef ioarc a'
+    writeIORef iops ps''
     writeIORef iovs vs'
 
 {--
 - Gibt das erste Element der MinHeap zurück,
 - das nicht im Visited-Set enthalten ist. 
 -}
-getNextArc :: (Ord a) => M.Map (a) (Arc a) -> H.MinHeap (Arc a) -> Arc a
-getNextArc vs ps
-    | M.notMember (label $ node h) vs = h
-    | otherwise                       = getNextArc vs $ tailH ps
+getNext :: (Ord a) => M.Map (a) (Arc a) -> H.MinHeap (Arc a) -> (Arc a, H.MinHeap (Arc a))
+getNext vs ps
+    | M.notMember (label $ node h) vs = (h, tailH ps)
+    | otherwise                       = getNext vs (tailH ps)
     where h = fromJust $ H.viewHead ps
 
 {--
