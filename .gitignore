@@ -8,11 +8,12 @@ cabal-dev
 *.dyn_hi
 *.eventlog
 *.exe
+*.prof
+*.aux
+*.hp
+*.ps
 .hpc
 .hsenv
 .cabal-sandbox/
 cabal.sandbox.config
-*.prof
-*.aux
-*.hp
 .stack-work/
