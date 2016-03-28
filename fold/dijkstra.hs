@@ -14,15 +14,15 @@ import qualified Data.Map.Strict as M   -- Map (BST) fuer das Visited-Set
 dijkstra :: (Ord a) => [Adj a] -> a -> a -> (Int, [Arc a])
 dijkstra l s d = (dist, M.elems res) where
     dist  = weight $ fromJust $ M.lookup d res
-    (_,_,res) = foldl' trav (init, H.empty, M.empty) $ graph
+    (_,_,res) = foldl' trav (init, H.empty, M.empty) $ M.elems graph
     graph = mkGraph l
-    start = fromJust $ findNode s graph
+    start = fromJust $ M.lookup s graph
     init  = Arc start 0 s
 
 trav :: (Ord a) => (Arc a, H.MinHeap (Arc a), M.Map a (Arc a)) -> b -> (Arc a, H.MinHeap (Arc a), M.Map a (Arc a))
-trav (arc,p,v) _ = (a',ps',vs)
-    where v'  = M.insert (label $ node arc) arc v
-          loc = map (updateWeight $ weight arc) (adjcnt $ node arc)
+trav (a,p,v) _ = (a', ps',vs)
+    where v'  = M.insert (label $ node a) a v
+          loc = map (updateWeight $ weight a) (adjcnt $ node a)
           (vs,ps) = updateSets loc v' p
           (a',ps') = getNext vs ps
 
@@ -35,7 +35,6 @@ getNext vs ps
     | M.notMember (label $ node h) vs = (h, tailH ps)
     | otherwise                       = getNext vs (tailH ps)
     where h = fromJust $ H.viewHead ps
-
 
 {--
 - Nicht-monadischer Wrapper für Heap.viewHead
@@ -71,29 +70,20 @@ updateSets (c:cs) v p
  - Knoten darstellt, d.h. ob sein Gewicht niedriger ist.
  -}
 better :: (Ord a) => Arc a -> M.Map (a) (Arc a) -> Bool
-better c v = case n of
+better c v = case M.lookup (label $ node c) v of
     Nothing -> False
     Just x  -> weight c < weight x
-    where n = M.lookup (label $ node c) v
 
 {--
  - Erstellt einen (moeglicherweise zyklischen) Graphen anhand
  - einer gegebenen Adjazenzliste.
  -}
-mkGraph :: (Eq a) => [Adj a] -> Graph a
-mkGraph links = map snd nodeList where
-    mkNode (lab, adj) = (lab, Node lab (map (lookupNode lab) adj))
-    nodeList = map mkNode links
-    lookupNode via (label, weight) = Arc node weight via
-        where node = fromJust $ lookup label nodeList
-
-{--
- - Durchsucht eine Liste aus Knoten mithilfe eines gegebenen
- - Knoten-Labels.
- -}
-findNode :: (Eq a) => a -> Graph a -> Maybe (Node a)
-findNode y []     = Nothing
-findNode y (x:xs) = if y == label x then Just x else findNode y xs
+mkGraph :: (Ord a) => [Adj a] -> Graph a
+mkGraph links = nodeMap where
+    nodeMap = M.map mkNode $ M.fromList $ map (\(x,y) -> (x,(x,y))) links
+    mkNode (lab, adj) = Node lab (map (mkArc lab) adj)
+    mkArc via (label, weight) = Arc node weight via
+        where node = fromJust $ M.lookup label nodeMap
 
 {- Hauptfunktion -}
 main = do

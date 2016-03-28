@@ -16,11 +16,8 @@ data Arc a = Arc
   , via     :: a
   } deriving (Show)
 
-type Graph a  = [Node a]
+type Graph a  = M.Map a (Node a)
 type Adj a    = (a, [(a, Int)])
-type GrValue a = M.Map (a) (Arc a)
-type GrState a = (Arc a, Maybe (H.MinHeap (Arc a)), M.Map (a) (Arc a))
-type DState a = (a, Int)
 
 ----------------------------------------------
 
