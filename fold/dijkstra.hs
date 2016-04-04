@@ -1,5 +1,5 @@
 import System.Environment (getArgs)     -- Kommandozeilenparameter lesen
-import Prelude hiding (traverse)        -- Standardfunktionen, außer traverse
+import Prelude hiding (traverse)        -- Standardfunktionen, außer traverseerse
 import Data.Maybe (fromJust)            -- Maybe-Werte "auspacken"
 import Data.List (foldl')
 import System.IO (readFile)             -- Dateiinhalte lesen
@@ -14,17 +14,16 @@ import qualified Data.Map.Strict as M   -- Map (BST) fuer das Visited-Set
 dijkstra :: (Ord a) => [Adj a] -> a -> a -> (Int, [Arc a])
 dijkstra l s d = (dist, M.elems res) where
     dist  = weight $ fromJust $ M.lookup d res
-    (_,_,res) = foldl' trav (init, H.empty, M.empty) $ M.elems graph
+    (_,_,res) = foldl' traverse (Arc start 0 s, H.empty, M.empty) $ M.elems graph
     graph = mkGraph l
     start = fromJust $ M.lookup s graph
-    init  = Arc start 0 s
 
-trav :: (Ord a) => (Arc a, H.MinHeap (Arc a), M.Map a (Arc a)) -> b -> (Arc a, H.MinHeap (Arc a), M.Map a (Arc a))
-trav (a,p,v) _ = (a', ps',vs)
-    where v'  = M.insert (label $ node a) a v
-          loc = map (updateWeight $ weight a) (adjcnt $ node a)
-          (vs,ps) = updateSets loc v' p
-          (a',ps') = getNext vs ps
+traverse :: (Ord a) => (Arc a, H.MinHeap (Arc a), M.Map a (Arc a)) -> b -> (Arc a, H.MinHeap (Arc a), M.Map a (Arc a))
+traverse (arc,ps,vs) _ = (new_arc,new_ps,new_vs)
+    where vs' = M.insert (label $ node arc) arc vs
+          loc = map (updateWeight $ weight arc) (adjcnt $ node arc)
+          (new_vs,ps') = updateSets loc vs' ps
+          (new_arc,new_ps) = getNext new_vs ps'
 
 {--
  - Ignoriere Kandidaten, die bereits im Visited-Set vorhanden sind
@@ -60,19 +59,19 @@ updateWeight w x = Arc (node x) (w + weight x) (via x)
  -}
 updateSets :: (Ord a) => [Arc a] -> M.Map (a) (Arc a) -> H.MinHeap (Arc a) -> (M.Map (a) (Arc a), H.MinHeap (Arc a))
 updateSets [] v p = (v,p)
-updateSets (c:cs) v p
-    | M.notMember (label $ node c) v = updateSets cs v (H.insert c p)
-    | better c v                     = updateSets cs (M.insert (label $ node c) c v) p
-    | otherwise                      = updateSets cs v p
+updateSets (x:xs) v p
+    | M.notMember (label $ node x) v = updateSets xs v (H.insert x p)
+    | better x v                     = updateSets xs (M.insert (label $ node x) x v) p
+    | otherwise                      = updateSets xs v p
 
 {--
  - Prueft ob ein gegebener Arc eine bessere Alternative zu einem
  - Knoten darstellt, d.h. ob sein Gewicht niedriger ist.
  -}
 better :: (Ord a) => Arc a -> M.Map (a) (Arc a) -> Bool
-better c v = case M.lookup (label $ node c) v of
+better a m = case M.lookup (label $ node a) m of
     Nothing -> False
-    Just x  -> weight c < weight x
+    Just x  -> weight a < weight x
 
 {--
  - Erstellt einen (moeglicherweise zyklischen) Graphen anhand

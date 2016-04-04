@@ -19,7 +19,7 @@ dijkstra l s d = do
     arc <- newIORef $ Arc start 0 s
     ps  <- newIORef $ H.empty
     vs  <- newIORef $ M.empty
-    replicateM_ (length graph) $ traverse arc ps vs
+    replicateM_ (M.size graph) $ traverse arc ps vs
     vs' <- readIORef vs
     return (weight $ fromJust $ M.lookup d vs', M.elems vs')
 
@@ -32,12 +32,13 @@ traverse ioarc iops iovs = do
     arc <- readIORef ioarc
     ps  <- readIORef iops
     vs  <- readIORef iovs
-    let loc = map (updateWeight $ weight arc) (adjcnt $ node arc)
-        (vs',ps') = updateSets loc (M.insert (label $ node arc) arc vs) ps
-        (a',ps'') = getNext vs' ps'
-    writeIORef ioarc a'
-    writeIORef iops ps''
-    writeIORef iovs vs'
+    let vs' = M.insert (label $ node arc) arc vs
+        loc = map (updateWeight $ weight arc) (adjcnt $ node arc)
+        (new_vs,ps') = updateSets loc vs' ps
+        (new_arc,new_ps) = getNext new_vs ps'
+    writeIORef ioarc new_arc
+    writeIORef iops new_ps
+    writeIORef iovs new_vs
 
 {--
 - Gibt das erste Element der MinHeap zurück,
@@ -71,23 +72,21 @@ updateWeight w x = Arc (node x) (w + weight x) (via x)
  - wird gepueft ob sie eine bessere Alternative zum jeweiligen Knoten
  - darstellt und anschließend hinzugefuegt oder ignoriert.
  -}
-updateSets :: (Ord a) => [Arc a] -> M.Map (a) (Arc a) -> H.MinHeap (Arc a)
-                         -> (M.Map (a) (Arc a), H.MinHeap (Arc a))
+updateSets :: (Ord a) => [Arc a] -> M.Map (a) (Arc a) -> H.MinHeap (Arc a) -> (M.Map (a) (Arc a), H.MinHeap (Arc a))
 updateSets [] v p = (v,p)
-updateSets (c:cs) v p
-    | M.notMember (label $ node c) v = updateSets cs v (H.insert c p)
-    | better c v                     = updateSets cs (M.insert (label $ node c) c v) p
-    | otherwise                      = updateSets cs v p
+updateSets (x:xs) v p
+    | M.notMember (label $ node x) v = updateSets xs v (H.insert x p)
+    | better x v                     = updateSets xs (M.insert (label $ node x) x v) p
+    | otherwise                      = updateSets xs v p
 
 {--
  - Prueft ob ein gegebener Arc eine bessere Alternative zu einem
  - Knoten darstellt, d.h. ob sein Gewicht niedriger ist.
  -}
 better :: (Ord a) => Arc a -> M.Map (a) (Arc a) -> Bool
-better c v = case n of
+better a m = case M.lookup (label $ node a) m of
     Nothing -> False
-    Just x  -> weight c < weight x
-    where n = M.lookup (label $ node c) v
+    Just x  -> weight a < weight x
 
 {--
  - Erstellt einen (moeglicherweise zyklischen) Graphen anhand
@@ -107,4 +106,4 @@ main = do
     c <- readFile f
     let nlist = read c :: [(String,[(String, Int)])]
     res <- dijkstra nlist s d
-    print $ fst res
+    print res
