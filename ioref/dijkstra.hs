@@ -2,7 +2,6 @@ import System.Environment (getArgs)     -- Kommandozeilenparameter lesen
 import Prelude hiding (traverse)        -- Standardfunktionen, außer traverse
 import Data.Maybe (fromJust)            -- Maybe-Werte "auspacken"
 import System.IO (readFile)             -- Dateiinhalte lesen
-import Control.Monad.State              -- State-Monade
 import CustomTypes                      -- Eigenen Datentypen
 import qualified Data.Heap as H         -- MinHeap fuer das Kandidaten-Set
 import qualified Data.Map.Strict as M   -- Map (BST) fuer das Visited-Set
